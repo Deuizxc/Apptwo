@@ -1,29 +1,42 @@
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 export default function WallScreen() {
-  const [messages, setMessages] = useState([
-    { id: '1', text: 'Good luck with the midterms everyone!', author: 'Anonymous', time: '10:00 AM' },
-    { id: '2', text: 'Does anyone have the syllabus for Information Management?', author: 'Anonymous', time: '10:30 AM' }
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const postMessage = () => {
+  useEffect(() => {
+    const q = query(collection(db, 'wall'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const posts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setMessages(posts);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const postMessage = async () => {
     if (newMessage.trim()) {
-      const newPost = {
-        id: Math.random().toString(),
+      await addDoc(collection(db, 'wall'), {
         text: newMessage,
         author: 'Anonymous', 
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([...messages, newPost]);
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        createdAt: serverTimestamp()
+      });
       setNewMessage('');
     }
   };
 
-  const deleteMessage = (id) => {
-    setMessages(messages.filter(msg => msg.id !== id));
+  const deleteMessage = async (id) => {
+    await deleteDoc(doc(db, 'wall', id));
   };
 
   return (
@@ -36,21 +49,28 @@ export default function WallScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.chatArea}>
-        {messages.map((msg) => (
-          <View key={msg.id} style={styles.messageBubble}>
-            <Text style={styles.messageText}>{msg.text}</Text>
-            <View style={styles.metaData}>
-              <Text style={styles.metaText}>{msg.author} • {msg.time}</Text>
-              {isAdmin && (
-                <TouchableOpacity onPress={() => deleteMessage(msg.id)}>
-                  <Text style={styles.deleteText}>Delete</Text>
-                </TouchableOpacity>
-              )}
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 50 }} />
+      ) : (
+        <ScrollView style={styles.chatArea}>
+          {messages.length === 0 && (
+            <Text style={styles.emptyText}>No posts yet. Say something nice!</Text>
+          )}
+          {messages.map((msg) => (
+            <View key={msg.id} style={styles.messageBubble}>
+              <Text style={styles.messageText}>{msg.text}</Text>
+              <View style={styles.metaData}>
+                <Text style={styles.metaText}>{msg.author} • {msg.time}</Text>
+                {isAdmin && (
+                  <TouchableOpacity onPress={() => deleteMessage(msg.id)}>
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
 
       <View style={styles.inputContainer}>
         <TextInput 
@@ -74,6 +94,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 18, fontWeight: 'bold' },
   adminToggle: { backgroundColor: '#ddd', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
   adminToggleText: { fontSize: 12, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', marginTop: 30, color: '#888', fontStyle: 'italic' },
   chatArea: { flex: 1, paddingHorizontal: 15 },
   messageBubble: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10, elevation: 1 },
   messageText: { fontSize: 16, color: '#333', marginBottom: 5 },
