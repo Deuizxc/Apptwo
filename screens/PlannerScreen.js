@@ -1,151 +1,45 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
+import { useRef, useEffect } from 'react';
+
+const scheduleData = [
+  { day: 'Monday', classes: [{ time: '07:30 AM - 09:30 AM', subject: 'PF 101 - OOP', room: 'IL603a' }, { time: '06:00 PM - 09:00 PM', subject: 'MS 101 - Discrete Math', room: 'IL304a' }] },
+  { day: 'Tuesday', classes: [{ time: '07:00 AM - 09:00 AM', subject: 'CC 105 - Info Management', room: 'IL604a' }] }
+];
 
 export default function PlannerScreen() {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true })
+    ]).start();
+  }, []);
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>SBIT-2A Schedule</Text>
-      
-      <View style={styles.dayBlock}>
-        <Text style={styles.dayTitle}>Monday</Text>
-        
-        <View style={styles.classCard}>
-          <Text style={styles.time}>07:30 AM - 09:30 AM</Text>
-          <Text style={styles.subject}>PF 101 - Object-Oriented Programming</Text>
-          <Text style={styles.room}>Room: IL603a</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>11:00 AM - 02:00 PM</Text>
-          <Text style={styles.subject}>PF 101 - Object-Oriented Programming</Text>
-          <Text style={styles.room}>Room: IK504 F1</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>06:00 PM - 09:00 PM</Text>
-          <Text style={styles.subject}>MS 101 - Discrete Mathematics</Text>
-          <Text style={styles.room}>Room: IL304a</Text>
-        </View>
-      </View>
-
-      <View style={styles.dayBlock}>
-        <Text style={styles.dayTitle}>Tuesday</Text>
-        
-        <View style={styles.classCard}>
-          <Text style={styles.time}>07:00 AM - 09:00 AM</Text>
-          <Text style={styles.subject}>CC 105 - Information Management</Text>
-          <Text style={styles.room}>Room: IL604a</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>10:30 AM - 01:30 PM</Text>
-          <Text style={styles.subject}>CC 105 - Information Management</Text>
-          <Text style={styles.room}>Room: IE207c</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>02:30 PM - 05:30 PM</Text>
-          <Text style={styles.subject}>TECHNO 1 - Technopreneurship</Text>
-          <Text style={styles.room}>Room: IL503a</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>06:00 PM - 09:00 PM</Text>
-          <Text style={styles.subject}>IS 106 - IS Project Management</Text>
-          <Text style={styles.room}>Room: IL603a</Text>
-        </View>
-      </View>
-
-      <View style={styles.dayBlock}>
-        <Text style={styles.dayTitle}>Wednesday</Text>
-        
-        <View style={styles.classCard}>
-          <Text style={styles.time}>07:00 AM - 10:00 AM</Text>
-          <Text style={styles.subject}>NET 101 - Networking 1</Text>
-          <Text style={styles.room}>Room: IK504 F1</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>11:30 AM - 01:30 PM</Text>
-          <Text style={styles.subject}>NET 101 - Networking 1</Text>
-          <Text style={styles.room}>Room: IL604a</Text>
-        </View>
-      </View>
-
-      <View style={styles.dayBlock}>
-        <Text style={styles.dayTitle}>Thursday</Text>
-        
-        <View style={styles.classCard}>
-          <Text style={styles.time}>07:00 AM - 09:00 AM</Text>
-          <Text style={styles.subject}>CC 104 - Data Structures and Algorithms</Text>
-          <Text style={styles.room}>Room: IL604a</Text>
-        </View>
-
-        <View style={styles.classCard}>
-          <Text style={styles.time}>10:30 AM - 01:30 PM</Text>
-          <Text style={styles.subject}>CC 104 - Data Structures and Algorithms</Text>
-          <Text style={styles.room}>Room: IE207c</Text>
-        </View>
-      </View>
-
-      <View style={styles.dayBlock}>
-        <Text style={styles.dayTitle}>Saturday</Text>
-        
-        <View style={styles.classCard}>
-          <Text style={styles.time}>02:30 PM - 04:30 PM</Text>
-          <Text style={styles.subject}>PATHFIT 3 - Physical Activities</Text>
-          <Text style={styles.room}>Room: SB OG</Text>
-        </View>
-      </View>
-
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: 90, paddingBottom: 100 }}>
+      {scheduleData.map((dayGroup, index) => (
+        <Animated.View key={index} style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], marginHorizontal: 20, marginBottom: 20 }}>
+          <Text style={styles.dayHeader}>{dayGroup.day}</Text>
+          {dayGroup.classes.map((cls, idx) => (
+            <View key={idx} style={styles.card}>
+              <Text style={styles.timeText}>{cls.time}</Text>
+              <Text style={styles.subjectText}>{cls.subject}</Text>
+              <Text style={styles.roomText}>Room: {cls.room}</Text>
+            </View>
+          ))}
+        </Animated.View>
+      ))}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#f5f5f5', 
-    padding: 15 
-  },
-  header: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 20, 
-    textAlign: 'center' 
-  },
-  dayBlock: { 
-    marginBottom: 20 
-  },
-  dayTitle: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: '#333', 
-    marginBottom: 10 
-  },
-  classCard: { 
-    backgroundColor: '#fff', 
-    padding: 15, 
-    borderRadius: 10, 
-    marginBottom: 10, 
-    elevation: 2, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.1, 
-    shadowRadius: 4 
-  },
-  time: { 
-    color: '#007bff', 
-    fontSize: 14, 
-    marginBottom: 5,
-    fontWeight: 'bold'
-  },
-  subject: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#222' 
-  },
-  room: { 
-    fontSize: 14, 
-    color: '#555', 
-    marginTop: 5 
-  }
+  container: { flex: 1, backgroundColor: 'transparent' },
+  dayHeader: { fontSize: 22, fontWeight: 'bold', color: '#2C3E50', marginBottom: 15 },
+  card: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 24, marginBottom: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15 },
+  timeText: { fontSize: 14, fontWeight: 'bold', color: '#60C5F1', marginBottom: 8 },
+  subjectText: { fontSize: 17, fontWeight: 'bold', color: '#2C3E50', marginBottom: 6 },
+  roomText: { fontSize: 14, color: '#7F8C8D' }
 });

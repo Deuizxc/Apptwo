@@ -6,103 +6,76 @@ import { db } from '../firebaseConfig';
 export default function HomeScreen() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Admin controls
   const [isAdmin, setIsAdmin] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
 
-  // Fetch data in real-time from Firestore
   useEffect(() => {
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const posts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setAnnouncements(posts);
+      setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   const addAnnouncement = async () => {
     if (newTitle && newBody) {
       await addDoc(collection(db, 'announcements'), {
-        title: newTitle,
-        body: newBody,
+        title: newTitle, body: newBody, author: 'Admin',
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        author: 'Admin',
         createdAt: serverTimestamp()
       });
-      setModalVisible(false);
-      setNewTitle('');
-      setNewBody('');
+      setModalVisible(false); setNewTitle(''); setNewBody('');
     }
-  };
-
-  const deleteAnnouncement = async (id) => {
-    await deleteDoc(doc(db, 'announcements', id));
   };
 
   return (
     <View style={styles.container}>
-      {/* Admin Toggle Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.header}>Section Announcements</Text>
-        <TouchableOpacity style={styles.adminToggle} onPress={() => setIsAdmin(!isAdmin)}>
+      <View style={{ height: 90 }} />
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, marginBottom: 15 }}>
+        <TouchableOpacity onPress={() => setIsAdmin(!isAdmin)} style={styles.glassToggle}>
           <Text style={styles.adminToggleText}>{isAdmin ? 'Admin View' : 'Student View'}</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color="#1D70F5" style={{ marginTop: 50 }} />
       ) : (
-        <ScrollView>
-          {announcements.length === 0 && (
-            <Text style={styles.emptyText}>No announcements yet.</Text>
-          )}
+        <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
           {announcements.map((post) => (
-            <View key={post.id} style={styles.card}>
+            <View key={post.id} style={styles.opaqueCard}>
               <View style={styles.cardHeader}>
                 <Text style={styles.date}>{post.date}</Text>
                 {isAdmin && (
-                  <TouchableOpacity onPress={() => deleteAnnouncement(post.id)}>
+                  <TouchableOpacity onPress={() => deleteDoc(doc(db, 'announcements', post.id))}>
                     <Text style={styles.deleteText}>Delete</Text>
                   </TouchableOpacity>
                 )}
               </View>
               <Text style={styles.title}>{post.title}</Text>
               <Text style={styles.body}>{post.body}</Text>
-              <Text style={styles.author}>- {post.author}</Text>
             </View>
           ))}
         </ScrollView>
       )}
 
-      {/* Admin Add Button */}
       {isAdmin && (
         <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <Text style={styles.addButtonText}>+ Add Announcement</Text>
+          <Text style={styles.addButtonText}>+ Post</Text>
         </TouchableOpacity>
       )}
 
-      {/* Add Announcement Popup */}
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>New Announcement</Text>
             <TextInput style={styles.input} placeholder="Title" value={newTitle} onChangeText={setNewTitle} />
-            <TextInput style={[styles.input, styles.textArea]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
+            <TextInput style={[styles.input, { height: 100 }]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
-                <Text style={styles.btnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={addAnnouncement}>
-                <Text style={styles.btnText}>Post</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}><Text style={styles.btnText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={addAnnouncement}><Text style={styles.btnText}>Post</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -112,28 +85,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: '#fff', elevation: 3 },
-  header: { fontSize: 18, fontWeight: 'bold' },
-  adminToggle: { backgroundColor: '#ddd', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
-  adminToggleText: { fontSize: 12, fontWeight: 'bold' },
-  emptyText: { textAlign: 'center', marginTop: 30, color: '#888', fontStyle: 'italic' },
-  card: { backgroundColor: '#fff', padding: 15, marginHorizontal: 15, marginTop: 15, borderRadius: 10, elevation: 2 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  glassToggle: { paddingHorizontal: 15, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
+  adminToggleText: { fontSize: 12, fontWeight: 'bold', color: '#2C3E50' },
+  opaqueCard: { backgroundColor: '#FFFFFF', padding: 20, marginHorizontal: 20, marginBottom: 15, borderRadius: 24, elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  date: { color: '#888', fontSize: 12 },
-  deleteText: { color: 'red', fontSize: 12, fontWeight: 'bold' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#222', marginBottom: 5 },
-  body: { fontSize: 14, color: '#444', marginBottom: 10, lineHeight: 20 },
-  author: { fontSize: 12, color: '#666', fontStyle: 'italic', textAlign: 'right' },
-  addButton: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#007bff', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, elevation: 5 },
-  addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalBox: { backgroundColor: '#fff', padding: 20, borderRadius: 10 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 10, marginBottom: 15 },
-  textArea: { height: 100, textAlignVertical: 'top' },
+  date: { color: '#60C5F1', fontSize: 12, fontWeight: 'bold' },
+  deleteText: { color: '#FF6B6B', fontSize: 12, fontWeight: 'bold' },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#2C3E50', marginBottom: 5 },
+  body: { fontSize: 14, color: '#7F8C8D', lineHeight: 22 },
+  addButton: { position: 'absolute', bottom: 90, alignSelf: 'center', backgroundColor: '#60C5F1', paddingVertical: 15, paddingHorizontal: 30, borderRadius: 30, elevation: 8 },
+  addButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalBox: { backgroundColor: '#FFFFFF', padding: 25, borderRadius: 24 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#2C3E50', marginBottom: 20 },
+  input: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 15, marginBottom: 15, color: '#2C3E50' },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between' },
-  cancelBtn: { backgroundColor: '#888', padding: 10, borderRadius: 5, flex: 0.45, alignItems: 'center' },
-  submitBtn: { backgroundColor: '#007bff', padding: 10, borderRadius: 5, flex: 0.45, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: 'bold' }
+  cancelBtn: { backgroundColor: '#E0E6ED', padding: 12, borderRadius: 12, flex: 0.45, alignItems: 'center' },
+  submitBtn: { backgroundColor: '#1D70F5', padding: 12, borderRadius: 12, flex: 0.45, alignItems: 'center' },
+  btnText: { color: '#FFFFFF', fontWeight: 'bold' }
 });
