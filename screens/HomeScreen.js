@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Alert } from 'react-native';
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
@@ -33,13 +33,35 @@ export default function HomeScreen({ navigation }) {
   );
 
   const addAnnouncement = async () => {
-    if (newTitle && newBody) {
-      await addDoc(collection(db, 'announcements'), {
-        title: newTitle, body: newBody, author: 'Admin',
-        date: new Date().toLocaleDateString(), createdAt: serverTimestamp()
-      });
-      setModalVisible(false); setNewTitle(''); setNewBody('');
+    // 1. Check if fields are empty
+    if (!newTitle.trim() || !newBody.trim()) {
+      Alert.alert("Missing Details", "Please enter both a title and a message before posting.");
+      return;
     }
+
+    // 2. Try to send to Firebase and catch any permission errors
+    try {
+      await addDoc(collection(db, 'announcements'), {
+        title: newTitle, 
+        body: newBody, 
+        author: 'Admin',
+        date: new Date().toLocaleDateString(), 
+        createdAt: serverTimestamp()
+      });
+      setModalVisible(false); 
+      setNewTitle(''); 
+      setNewBody('');
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Database Error", "Could not post. Check your Firebase Firestore Security Rules.");
+    }
+  };
+
+  const confirmDelete = (id) => {
+    Alert.alert("Delete Post", "Are you sure you want to remove this announcement?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteDoc(doc(db, 'announcements', id)) }
+    ]);
   };
 
   return (
@@ -49,7 +71,6 @@ export default function HomeScreen({ navigation }) {
 
       <Animated.ScrollView style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }} contentContainerStyle={{ paddingBottom: 100 }}>
         
-        {/* Personalized Greeting Section */}
         <View style={styles.headerArea}>
           <View>
             <Text style={styles.greetingText}>Hello John! 👋</Text>
@@ -60,7 +81,6 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Glance / Actions */}
         <View style={styles.quickGlanceRow}>
           <TouchableOpacity style={styles.glanceCard} onPress={() => navigation.navigate('Planner')}>
             <BlurView intensity={50} tint="light" style={styles.glanceGlass}>
@@ -76,7 +96,6 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Announcements Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Latest Announcements</Text>
         </View>
@@ -89,7 +108,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <Text style={styles.body}>{post.body}</Text>
             {isAdmin && (
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteDoc(doc(db, 'announcements', post.id))}>
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => confirmDelete(post.id)}>
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
             )}
@@ -103,13 +122,12 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* Modal */}
       <Modal visible={modalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Post Update</Text>
             <TextInput style={styles.input} placeholder="Title" value={newTitle} onChangeText={setNewTitle} />
-            <TextInput style={[styles.input, { height: 100 }]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
+            <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}><Text style={{color: '#FFF'}}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={addAnnouncement}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Post</Text></TouchableOpacity>

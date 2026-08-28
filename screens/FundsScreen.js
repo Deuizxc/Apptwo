@@ -1,9 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Linking, Animated } from 'react-native';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function FundsScreen() {
@@ -33,8 +32,9 @@ export default function FundsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.bgBlobEmerald} />
-      <View style={styles.bgBlobTeal} />
+      {/* Sharp Geometric Vault Header */}
+      <View style={styles.vaultHeader} />
+      <View style={styles.vaultAccent} />
 
       <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         <View style={styles.headerArea}>
@@ -45,29 +45,32 @@ export default function FundsScreen() {
         </View>
 
         <View style={styles.content}>
+          <View style={styles.balanceCard}>
+            <Ionicons name="shield-checkmark" size={40} color="#F59E0B" style={{marginBottom: 10}} />
+            <Text style={styles.balanceSub}>Financial Transparency</Text>
+            <Text style={styles.balanceDesc}>All collections and expenses are tracked live.</Text>
+          </View>
+
           {!editMode && (
-            <TouchableOpacity onPress={() => sheetLink && Linking.openURL(sheetLink)} style={{width: '100%'}}>
-              <BlurView intensity={70} tint="light" style={styles.openBtnGlass}>
-                <Ionicons name="pie-chart" size={40} color="#059669" style={{marginBottom: 10}} />
-                <Text style={styles.openText}>{sheetLink ? 'Open Transparency Ledger' : 'No Ledger Linked'}</Text>
-                <Text style={styles.openSub}>Tap to view Google Sheets</Text>
-              </BlurView>
+            <TouchableOpacity onPress={() => sheetLink && Linking.openURL(sheetLink)} style={styles.openBtn}>
+              <Ionicons name="folder-open" size={24} color="#FFF" />
+              <Text style={styles.openText}>{sheetLink ? 'Open Google Sheets' : 'No Ledger Linked'}</Text>
             </TouchableOpacity>
           )}
 
           {isAdmin && !editMode && (
-            <TouchableOpacity onPress={() => setEditMode(true)} style={{marginTop: 30}}>
-              <Text style={styles.editText}>✏️ Edit Google Sheets URL</Text>
+            <TouchableOpacity onPress={() => setEditMode(true)} style={{marginTop: 25}}>
+              <Text style={styles.editText}>Configure Document Link</Text>
             </TouchableOpacity>
           )}
 
           {isAdmin && editMode && (
-            <View style={styles.card}>
-              <Text style={styles.label}>Spreadsheet Link:</Text>
+            <View style={styles.editCard}>
+              <Text style={styles.label}>Paste Link Here:</Text>
               <TextInput style={styles.input} placeholder="https://docs.google.com/..." value={tempLink} onChangeText={setTempLink} />
               <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditMode(false)}><Text style={{color: '#FFF'}}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={save}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Save Link</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditMode(false)}><Text style={{color: '#64748B', fontWeight:'bold'}}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={save}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Secure Link</Text></TouchableOpacity>
               </View>
             </View>
           )}
@@ -78,22 +81,24 @@ export default function FundsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F9FF' },
-  bgBlobEmerald: { position: 'absolute', top: -50, right: -50, width: 350, height: 350, backgroundColor: '#10B981', borderRadius: 175, opacity: 0.15 },
-  bgBlobTeal: { position: 'absolute', bottom: 100, left: -100, width: 300, height: 300, backgroundColor: '#06B6D4', borderRadius: 150, opacity: 0.1 },
+  container: { flex: 1, backgroundColor: '#F3F4F6' },
+  vaultHeader: { position: 'absolute', top: -50, width: '150%', height: 350, backgroundColor: '#059669', transform: [{ skewY: '-8deg' }], left: '-25%' },
+  vaultAccent: { position: 'absolute', top: 250, width: '150%', height: 50, backgroundColor: '#F59E0B', transform: [{ skewY: '-8deg' }], left: '-25%', opacity: 0.9 },
   headerArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 70, paddingHorizontal: 25, paddingBottom: 30 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#2C3E50' },
-  adminBadge: { backgroundColor: 'rgba(255,255,255,0.5)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#FFF' },
+  adminBadge: { backgroundColor: '#FFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   adminText: { color: '#059669', fontWeight: 'bold', fontSize: 12 },
-  content: { paddingHorizontal: 25, alignItems: 'center' },
-  openBtnGlass: { width: '100%', padding: 40, borderRadius: 30, alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)' },
-  openText: { color: '#2C3E50', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
-  openSub: { color: '#059669', fontSize: 13, marginTop: 5, fontWeight: 'bold' },
-  editText: { color: '#059669', fontWeight: 'bold', fontSize: 16 },
-  card: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, width: '100%', elevation: 3 },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#2C3E50', marginBottom: 10 },
-  input: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 15, marginBottom: 20 },
+  content: { paddingHorizontal: 25, alignItems: 'center', marginTop: 40 },
+  balanceCard: { backgroundColor: '#FFF', width: '100%', padding: 30, borderRadius: 16, alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, marginBottom: 20 },
+  balanceSub: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  balanceDesc: { fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: 8 },
+  openBtn: { flexDirection: 'row', backgroundColor: '#10B981', paddingVertical: 18, paddingHorizontal: 25, borderRadius: 12, width: '100%', justifyContent: 'center', alignItems: 'center', elevation: 3, gap: 10 },
+  openText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  editText: { color: '#059669', fontWeight: 'bold', fontSize: 14, textDecorationLine: 'underline' },
+  editCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 16, width: '100%', elevation: 4, borderWidth: 1, borderColor: '#E5E7EB' },
+  label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10 },
+  input: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: '#D1D5DB' },
   actionRow: { flexDirection: 'row', gap: 10 },
-  cancelBtn: { flex: 1, backgroundColor: '#A0AEC0', padding: 15, borderRadius: 12, alignItems: 'center' },
-  saveBtn: { flex: 1, backgroundColor: '#10B981', padding: 15, borderRadius: 12, alignItems: 'center' }
+  cancelBtn: { flex: 1, backgroundColor: '#E5E7EB', padding: 15, borderRadius: 8, alignItems: 'center' },
+  saveBtn: { flex: 1, backgroundColor: '#059669', padding: 15, borderRadius: 8, alignItems: 'center' }
 });
