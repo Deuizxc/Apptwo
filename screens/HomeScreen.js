@@ -1,12 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
-import { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 export default function HomeScreen() {
-  // Temporary local state for announcements (will move to database later)
-  const [announcements, setAnnouncements] = useState([
-    { id: '1', title: 'No ROTC This Weekend', body: 'Please be informed that our Military Science 2 formation is cancelled this week. Rest up and prepare for midterm reviews.', date: 'Aug 28, 2026', author: 'Class Mayor' },
-    { id: '2', title: 'Submit Lab Requirements', body: 'A reminder to push your final GitHub repositories for our Object-Oriented Programming project before midnight on Monday.', date: 'Aug 26, 2026', author: 'Beadle' }
-  ]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Admin controls
   const [isAdmin, setIsAdmin] = useState(false);
@@ -14,24 +13,38 @@ export default function HomeScreen() {
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
 
-  const addAnnouncement = () => {
+  // Fetch data in real-time from Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const posts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAnnouncements(posts);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const addAnnouncement = async () => {
     if (newTitle && newBody) {
-      const newPost = {
-        id: Math.random().toString(),
+      await addDoc(collection(db, 'announcements'), {
         title: newTitle,
         body: newBody,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        author: 'Admin'
-      };
-      setAnnouncements([newPost, ...announcements]);
+        author: 'Admin',
+        createdAt: serverTimestamp()
+      });
       setModalVisible(false);
       setNewTitle('');
       setNewBody('');
     }
   };
 
-  const deleteAnnouncement = (id) => {
-    setAnnouncements(announcements.filter(post => post.id !== id));
+  const deleteAnnouncement = async (id) => {
+    await deleteDoc(doc(db, 'announcements', id));
   };
 
   return (
@@ -44,23 +57,30 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView>
-        {announcements.map((post) => (
-          <View key={post.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.date}>{post.date}</Text>
-              {isAdmin && (
-                <TouchableOpacity onPress={() => deleteAnnouncement(post.id)}>
-                  <Text style={styles.deleteText}>Delete</Text>
-                </TouchableOpacity>
-              )}
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 50 }} />
+      ) : (
+        <ScrollView>
+          {announcements.length === 0 && (
+            <Text style={styles.emptyText}>No announcements yet.</Text>
+          )}
+          {announcements.map((post) => (
+            <View key={post.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.date}>{post.date}</Text>
+                {isAdmin && (
+                  <TouchableOpacity onPress={() => deleteAnnouncement(post.id)}>
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <Text style={styles.title}>{post.title}</Text>
+              <Text style={styles.body}>{post.body}</Text>
+              <Text style={styles.author}>- {post.author}</Text>
             </View>
-            <Text style={styles.title}>{post.title}</Text>
-            <Text style={styles.body}>{post.body}</Text>
-            <Text style={styles.author}>- {post.author}</Text>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Admin Add Button */}
       {isAdmin && (
@@ -97,6 +117,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 18, fontWeight: 'bold' },
   adminToggle: { backgroundColor: '#ddd', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
   adminToggleText: { fontSize: 12, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', marginTop: 30, color: '#888', fontStyle: 'italic' },
   card: { backgroundColor: '#fff', padding: 15, marginHorizontal: 15, marginTop: 15, borderRadius: 10, elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   date: { color: '#888', fontSize: 12 },
