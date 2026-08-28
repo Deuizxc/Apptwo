@@ -33,24 +33,16 @@ export default function HomeScreen({ navigation }) {
   );
 
   const addAnnouncement = async () => {
-    // 1. Check if fields are empty
     if (!newTitle.trim() || !newBody.trim()) {
       Alert.alert("Missing Details", "Please enter both a title and a message before posting.");
       return;
     }
-
-    // 2. Try to send to Firebase and catch any permission errors
     try {
       await addDoc(collection(db, 'announcements'), {
-        title: newTitle, 
-        body: newBody, 
-        author: 'Admin',
-        date: new Date().toLocaleDateString(), 
-        createdAt: serverTimestamp()
+        title: newTitle, body: newBody, author: 'Admin',
+        date: new Date().toLocaleDateString(), createdAt: serverTimestamp()
       });
-      setModalVisible(false); 
-      setNewTitle(''); 
-      setNewBody('');
+      setModalVisible(false); setNewTitle(''); setNewBody('');
     } catch (error) {
       console.error(error);
       Alert.alert("Database Error", "Could not post. Check your Firebase Firestore Security Rules.");
@@ -149,8 +141,8 @@ const styles = StyleSheet.create({
   adminBadge: { backgroundColor: '#E0E6ED', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
   adminText: { color: '#2C3E50', fontWeight: 'bold', fontSize: 12 },
   quickGlanceRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 15, marginBottom: 25 },
-  glanceCard: { flex: 1, height: 100, borderRadius: 20, overflow: 'hidden', elevation: 3 },
-  glanceGlass: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.6)' },
+  glanceCard: { flex: 1, height: 100, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
+  glanceGlass: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.3)' },
   glanceTitle: { fontSize: 14, fontWeight: 'bold', color: '#2C3E50', marginTop: 8 },
   sectionHeader: { paddingHorizontal: 25, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#2C3E50' },
