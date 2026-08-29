@@ -1,21 +1,22 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Alert, LayoutAnimation, UIManager, Platform } from 'react-native';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { AppContext } from '../context/AppContext';
 
-// Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export default function HomeScreen({ navigation }) {
+  const { userName, colors, fontSize, isAdmin, setIsSidebarOpen } = useContext(AppContext);
+  
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
@@ -51,7 +52,6 @@ export default function HomeScreen({ navigation }) {
 
   const toggleExpand = (id) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Triggers the smooth expand/collapse animation
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
   };
@@ -77,7 +77,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.bgBlobBlue} />
       <View style={styles.bgBlobCyan} />
 
@@ -85,58 +85,56 @@ export default function HomeScreen({ navigation }) {
         
         <View style={styles.headerArea}>
           <View>
-            <Text style={styles.greetingText}>Hello John! 👋</Text>
-            <Text style={styles.subGreeting}>SBIT-2A Student Hub</Text>
+            <Text style={[styles.greetingText, { color: colors.text, fontSize: 28 * fontSize }]}>Hello {userName}! 👋</Text>
+            <Text style={[styles.subGreeting, { color: colors.subtext, fontSize: 14 * fontSize }]}>SBIT-2A Student Hub</Text>
           </View>
-          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid); setIsAdmin(!isAdmin); }} style={styles.adminBadge}>
-            <Text style={styles.adminText}>{isAdmin ? 'Admin Mode' : 'Student'}</Text>
+          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsSidebarOpen(true); }} style={styles.menuBtn}>
+            <Ionicons name="menu" size={32} color={colors.text} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.quickGlanceRow}>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => navigation.navigate('Planner')}>
-            <BlurView intensity={50} tint="light" style={styles.glanceGlass}>
-              <Ionicons name="calendar" size={24} color="#1D70F5" />
-              <Text style={styles.glanceTitle}>Schedule</Text>
+          <TouchableOpacity style={[styles.glanceCard, { borderColor: colors.border }]} onPress={() => navigation.navigate('Planner')}>
+            <BlurView intensity={50} tint={colors.background === '#0F172A' ? 'dark' : 'light'} style={styles.glanceGlass}>
+              <Ionicons name="calendar" size={24} color={colors.primary} />
+              <Text style={[styles.glanceTitle, { color: colors.text }]}>Schedule</Text>
             </BlurView>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => navigation.navigate('Tasks')}>
-            <BlurView intensity={50} tint="light" style={styles.glanceGlass}>
+          <TouchableOpacity style={[styles.glanceCard, { borderColor: colors.border }]} onPress={() => navigation.navigate('Tasks')}>
+            <BlurView intensity={50} tint={colors.background === '#0F172A' ? 'dark' : 'light'} style={styles.glanceGlass}>
               <Ionicons name="checkbox" size={24} color="#36E08B" />
-              <Text style={styles.glanceTitle}>My Tasks</Text>
+              <Text style={[styles.glanceTitle, { color: colors.text }]}>My Tasks</Text>
             </BlurView>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Latest Announcements</Text></View>
+        <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.text, fontSize: 18 * fontSize }]}>Latest Announcements</Text></View>
 
         {loading ? (
           [1, 2].map((key) => (
-            <Animated.View key={key} style={[styles.card, { opacity: shimmerAnim }]}>
-              <View style={{ width: '60%', height: 20, backgroundColor: '#E2E8F0', borderRadius: 10, marginBottom: 10 }} />
-              <View style={{ width: '100%', height: 14, backgroundColor: '#E2E8F0', borderRadius: 5, marginBottom: 6 }} />
-              <View style={{ width: '80%', height: 14, backgroundColor: '#E2E8F0', borderRadius: 5 }} />
+            <Animated.View key={key} style={[styles.card, { backgroundColor: colors.card, opacity: shimmerAnim }]}>
+              <View style={{ width: '60%', height: 20, backgroundColor: colors.border, borderRadius: 10, marginBottom: 10 }} />
+              <View style={{ width: '100%', height: 14, backgroundColor: colors.border, borderRadius: 5, marginBottom: 6 }} />
+              <View style={{ width: '80%', height: 14, backgroundColor: colors.border, borderRadius: 5 }} />
             </Animated.View>
           ))
         ) : (
           announcements.map((post) => (
-            <TouchableOpacity key={post.id} style={styles.card} activeOpacity={0.9} onPress={() => toggleExpand(post.id)}>
+            <TouchableOpacity key={post.id} style={[styles.card, { backgroundColor: colors.card }]} activeOpacity={0.9} onPress={() => toggleExpand(post.id)}>
               <View style={styles.cardHeader}>
-                <Text style={styles.title}>{post.title}</Text>
-                <Text style={styles.date}>{post.date}</Text>
+                <Text style={[styles.title, { color: colors.text, fontSize: 16 * fontSize }]}>{post.title}</Text>
+                <Text style={[styles.date, { color: colors.primary }]}>{post.date}</Text>
               </View>
               
-              <Text style={styles.body} numberOfLines={expandedId === post.id ? 0 : 3}>
+              <Text style={[styles.body, { color: colors.subtext, fontSize: 14 * fontSize }]} numberOfLines={expandedId === post.id ? 0 : 3}>
                 {post.body}
               </Text>
               
-              {/* Show "Read More" only if closed and text is long enough to be truncated */}
               {post.body.length > 100 && expandedId !== post.id && (
-                <Text style={styles.readMore}>Read More...</Text>
+                <Text style={[styles.readMore, { color: colors.primary }]}>Read More...</Text>
               )}
-              {/* Show "Show Less" when expanded */}
               {expandedId === post.id && (
-                <Text style={styles.readMore}>Show Less</Text>
+                <Text style={[styles.readMore, { color: colors.primary }]}>Show Less</Text>
               )}
 
               {isAdmin && (
@@ -150,20 +148,20 @@ export default function HomeScreen({ navigation }) {
       </Animated.ScrollView>
 
       {isAdmin && (
-        <TouchableOpacity style={styles.fab} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setModalVisible(true); }}>
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setModalVisible(true); }}>
           <Ionicons name="add" size={30} color="#FFF" />
         </TouchableOpacity>
       )}
 
       <Modal visible={modalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Post Update</Text>
-            <TextInput style={styles.input} placeholder="Title" value={newTitle} onChangeText={setNewTitle} />
-            <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Post Update</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text }]} placeholder="Title" placeholderTextColor={colors.subtext} value={newTitle} onChangeText={setNewTitle} />
+            <TextInput style={[styles.input, { backgroundColor: colors.background, color: colors.text, height: 100, textAlignVertical: 'top' }]} placeholder="Message" placeholderTextColor={colors.subtext} value={newBody} onChangeText={setNewBody} multiline />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}><Text style={{color: '#FFF'}}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={addAnnouncement}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Post</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}><Text style={{color: colors.text, fontFamily: 'Poppins_700Bold'}}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={addAnnouncement}><Text style={{color: '#FFF', fontFamily: 'Poppins_700Bold'}}>Post</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -173,34 +171,33 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F9FF' },
+  container: { flex: 1 },
   bgBlobBlue: { position: 'absolute', top: -50, right: -100, width: 400, height: 400, backgroundColor: '#1D70F5', borderRadius: 200, opacity: 0.15 },
   bgBlobCyan: { position: 'absolute', top: 150, left: -100, width: 300, height: 300, backgroundColor: '#60C5F1', borderRadius: 150, opacity: 0.15 },
   headerArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 70, paddingHorizontal: 25, paddingBottom: 20 },
-  greetingText: { fontSize: 28, fontFamily: 'Poppins_700Bold', color: '#2C3E50' },
-  subGreeting: { fontSize: 14, fontFamily: 'Poppins_400Regular', color: '#7F8C8D' },
-  adminBadge: { backgroundColor: '#E0E6ED', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  adminText: { color: '#2C3E50', fontFamily: 'Poppins_600SemiBold', fontSize: 12 },
+  greetingText: { fontFamily: 'Poppins_700Bold' },
+  subGreeting: { fontFamily: 'Poppins_400Regular' },
+  menuBtn: { padding: 5 },
   quickGlanceRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 15, marginBottom: 25 },
-  glanceCard: { flex: 1, height: 100, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
-  glanceGlass: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.3)' },
-  glanceTitle: { fontSize: 14, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginTop: 8 },
+  glanceCard: { flex: 1, height: 100, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
+  glanceGlass: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
+  glanceTitle: { fontFamily: 'Poppins_700Bold', marginTop: 8, fontSize: 14 },
   sectionHeader: { paddingHorizontal: 25, marginBottom: 15 },
-  sectionTitle: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: '#2C3E50' },
-  card: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, marginHorizontal: 20, marginBottom: 15, elevation: 2, overflow: 'hidden' },
+  sectionTitle: { fontFamily: 'Poppins_700Bold' },
+  card: { padding: 20, borderRadius: 20, marginHorizontal: 20, marginBottom: 15, elevation: 2, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  title: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: '#2C3E50', flex: 1 },
-  date: { fontSize: 12, color: '#1D70F5', fontFamily: 'Poppins_600SemiBold' },
-  body: { fontSize: 14, fontFamily: 'Poppins_400Regular', color: '#7F8C8D', lineHeight: 22 },
-  readMore: { color: '#1D70F5', fontFamily: 'Poppins_600SemiBold', fontSize: 12, marginTop: 8 },
-  deleteBtn: { backgroundColor: '#FFEDED', padding: 8, borderRadius: 10, alignSelf: 'flex-start', marginTop: 15 },
+  title: { fontFamily: 'Poppins_700Bold', flex: 1 },
+  date: { fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
+  body: { fontFamily: 'Poppins_400Regular', lineHeight: 22 },
+  readMore: { fontFamily: 'Poppins_600SemiBold', fontSize: 12, marginTop: 8 },
+  deleteBtn: { backgroundColor: 'rgba(255, 107, 107, 0.1)', padding: 8, borderRadius: 10, alignSelf: 'flex-start', marginTop: 15 },
   deleteText: { color: '#FF6B6B', fontSize: 11, fontFamily: 'Poppins_700Bold' },
-  fab: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#1D70F5', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalBox: { backgroundColor: '#FFF', padding: 25, borderRadius: 24 },
-  modalTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginBottom: 20 },
-  input: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 15, marginBottom: 15, fontFamily: 'Poppins_400Regular' },
+  fab: { position: 'absolute', bottom: 90, right: 20, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalBox: { padding: 25, borderRadius: 24 },
+  modalTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', marginBottom: 20 },
+  input: { borderRadius: 12, padding: 15, marginBottom: 15, fontFamily: 'Poppins_400Regular' },
   modalActions: { flexDirection: 'row', gap: 10 },
-  cancelBtn: { flex: 1, backgroundColor: '#A0AEC0', padding: 15, borderRadius: 12, alignItems: 'center' },
-  submitBtn: { flex: 1, backgroundColor: '#1D70F5', padding: 15, borderRadius: 12, alignItems: 'center' }
+  cancelBtn: { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' },
+  submitBtn: { flex: 1, padding: 15, borderRadius: 12, alignItems: 'center' }
 });
