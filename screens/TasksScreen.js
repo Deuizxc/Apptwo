@@ -7,35 +7,31 @@ import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 
+// Expanded Emoji Library
 const EMOJI_CATEGORIES = [
-  {
-    title: 'Study & Work',
-    emojis: ['💻', '📝', '📚', '📂', '📊', '📐', '🧠', '💡', '📌', '📎']
-  },
-  {
-    title: 'Activities & Fitness',
-    emojis: ['🏋️', '🏃', '🚴', '⚽', '🏀', '🥊', '🧗', '🚶', '🎯', '🧘']
-  },
-  {
-    title: 'Gaming & Fun',
-    emojis: ['🎮', '🕹️', '👾', '🎧', '🎬', '🍿', '🎨', '🎸', '🎲', '🔥']
-  },
-  {
-    title: 'Daily & Vibes',
-    emojis: ['☕', '🍔', '🍕', '🚗', '🚌', '✨', '⚡', '🌙', '⭐', '🚀']
-  },
-  {
-    title: 'Expressions',
-    emojis: ['😎', '🤖', '🫡', '🥳', '😴', '😤', '👻', '💀', '💯', '✅']
-  }
+  { title: 'Study & Work', emojis: ['💻', '📝', '📚', '📂', '📊', '📐', '🧠', '💡', '📌', '📎', '✏️', '📖', '📅', '💼', '🔎'] },
+  { title: 'Activities & Fitness', emojis: ['🏋️', '🏃', '🚴', '⚽', '🏀', '🥊', '🧗', '🚶', '🎯', '🧘', '🏊', '🎾', '🥇', '🏆', '🥋'] },
+  { title: 'Gaming & Fun', emojis: ['🎮', '🕹️', '👾', '🎧', '🎬', '🍿', '🎨', '🎸', '🎲', '🔥', '🧩', '🎳', '🎤', '🎫', '🎭'] },
+  { title: 'Daily & Vibes', emojis: ['☕', '🍔', '🍕', '🚗', '🚌', '✨', '⚡', '🌙', '⭐', '🚀', '🛒', '💸', '📱', '🛌', '🚿'] },
+  { title: 'Expressions', emojis: ['😎', '🤖', '🫡', '🥳', '😴', '😤', '👻', '💀', '💯', '✅', '🤔', '😭', '🤯', '🤩', '🤬'] },
+  { title: 'Nature & Travel', emojis: ['🌍', '✈️', '🏝️', '🏕️', '🌲', '☀️', '🌧️', '❄️', '🐾', '🦋', '🌊', '🍁', '🌵', '🌋', '⛺'] }
 ];
+
+// Safe formatters to prevent Android Hermes engine crashes
+const getSafeDate = (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+const getSafeTime = (d) => {
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('active');
   const [weekDates, setWeekDates] = useState([]);
   
-  // Form and Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [newTask, setNewTask] = useState('');
@@ -103,10 +99,12 @@ export default function TasksScreen() {
         id: Math.random().toString(), 
         title: newTask, 
         emoji: selectedEmoji || '📝', 
-        deadline: `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`, 
+        deadline: `${getSafeDate(date)} • ${getSafeTime(date)}`, 
         raw: date.toISOString(), status: isPast ? 'missed' : 'active' 
       }, ...tasks]);
       setModalVisible(false); setNewTask(''); setDate(new Date()); setSelectedEmoji('');
+    } else {
+      Alert.alert("Missing Detail", "Please enter a task name.");
     }
   };
 
@@ -178,7 +176,7 @@ export default function TasksScreen() {
           )}
           {displayedTasks.map(task => (
             <View key={task.id} style={styles.card}>
-              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : '#A0AEC0' }]} />
+              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : activeTab === 'completed' ? '#A0AEC0' : '#FF6B6B' }]} />
               <View style={styles.cardContent}>
                 <View style={styles.titleRow}>
                   <Text style={styles.taskEmoji}>{task.emoji}</Text>
@@ -240,10 +238,10 @@ export default function TasksScreen() {
             
             <View style={styles.pickerRow}>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => { setPickerMode('date'); setShowPicker(true); }}>
-                <Ionicons name="calendar-outline" size={18} color="#2C3E50" /><Text style={styles.pickerText}>{date.toLocaleDateString()}</Text>
+                <Ionicons name="calendar-outline" size={18} color="#2C3E50" /><Text style={styles.pickerText}>{getSafeDate(date)}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => { setPickerMode('time'); setShowPicker(true); }}>
-                <Ionicons name="time-outline" size={18} color="#2C3E50" /><Text style={styles.pickerText}>{date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                <Ionicons name="time-outline" size={18} color="#2C3E50" /><Text style={styles.pickerText}>{getSafeTime(date)}</Text>
               </TouchableOpacity>
             </View>
             
@@ -347,7 +345,6 @@ const styles = StyleSheet.create({
   btnText: { color: '#7F8C8D', fontFamily: 'Poppins_700Bold', fontSize: 15 },
   btnTextSubmit: { color: '#FFFFFF', fontFamily: 'Poppins_700Bold', fontSize: 15 },
   
-  // Sheet Styles
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '60%', paddingBottom: 30 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingTop: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: '#F1F5F9' },
