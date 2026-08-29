@@ -7,6 +7,29 @@ import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 
+const EMOJI_CATEGORIES = [
+  {
+    title: 'Study & Work',
+    emojis: ['💻', '📝', '📚', '📂', '📊', '📐', '🧠', '💡', '📌', '📎']
+  },
+  {
+    title: 'Activities & Fitness',
+    emojis: ['🏋️', '🏃', '🚴', '⚽', '🏀', '🥊', '🧗', '🚶', '🎯', '🧘']
+  },
+  {
+    title: 'Gaming & Fun',
+    emojis: ['🎮', '🕹️', '👾', '🎧', '🎬', '🍿', '🎨', '🎸', '🎲', '🔥']
+  },
+  {
+    title: 'Daily & Vibes',
+    emojis: ['☕', '🍔', '🍕', '🚗', '🚌', '✨', '⚡', '🌙', '⭐', '🚀']
+  },
+  {
+    title: 'Expressions',
+    emojis: ['😎', '🤖', '🫡', '🥳', '😴', '😤', '👻', '💀', '💯', '✅']
+  }
+];
+
 export default function TasksScreen() {
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('active');
@@ -14,6 +37,7 @@ export default function TasksScreen() {
   
   // Form and Modal State
   const [modalVisible, setModalVisible] = useState(false);
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [newTask, setNewTask] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('');
   const [date, setDate] = useState(new Date());
@@ -65,9 +89,10 @@ export default function TasksScreen() {
     await AsyncStorage.setItem('@tasks', JSON.stringify(data));
   };
 
-  const handleEmojiInput = (text) => {
-    const stripped = text.replace(/[\x00-\x7F]/g, "");
-    setSelectedEmoji(stripped ? Array.from(stripped)[0] : '');
+  const handleSelectEmoji = (emoji) => {
+    Haptics.selectionAsync();
+    setSelectedEmoji(emoji);
+    setEmojiPickerVisible(false);
   };
 
   const addTask = () => {
@@ -153,7 +178,7 @@ export default function TasksScreen() {
           )}
           {displayedTasks.map(task => (
             <View key={task.id} style={styles.card}>
-              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : activeTab === 'completed' ? '#A0AEC0' : '#FF6B6B' }]} />
+              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : '#A0AEC0' }]} />
               <View style={styles.cardContent}>
                 <View style={styles.titleRow}>
                   <Text style={styles.taskEmoji}>{task.emoji}</Text>
@@ -183,24 +208,27 @@ export default function TasksScreen() {
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>
 
+      {/* Main Add Task Modal */}
       <Modal visible={modalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>New Task</Text>
             
             <View style={styles.inputRow}>
-              {/* Invisible placeholder logic for Emoji */}
-              <View style={styles.emojiWrapper}>
-                {!selectedEmoji && (
-                  <Ionicons name="add-circle-outline" size={24} color="#A0AEC0" style={styles.emojiIconPlaceholder} />
+              <TouchableOpacity 
+                style={styles.emojiPickerTrigger} 
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEmojiPickerVisible(true); }}
+              >
+                {selectedEmoji ? (
+                  <Text style={styles.selectedEmojiText}>{selectedEmoji}</Text>
+                ) : (
+                  <View style={styles.emojiPlaceholderContainer}>
+                    <Ionicons name="happy-outline" size={24} color="#A0AEC0" />
+                    <Ionicons name="add" size={12} color="#4A65E0" style={styles.miniPlus} />
+                  </View>
                 )}
-                <TextInput 
-                  style={styles.emojiInput} 
-                  placeholder="" 
-                  value={selectedEmoji} 
-                  onChangeText={handleEmojiInput} 
-                />
-              </View>
+              </TouchableOpacity>
+
               <TextInput 
                 style={styles.textInput} 
                 placeholder="What needs to be done?" 
@@ -225,6 +253,39 @@ export default function TasksScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}><Text style={styles.btnText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.submitBtn} onPress={addTask}><Text style={styles.btnTextSubmit}>Save Task</Text></TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Interactive In-App Emoji Picker Sheet */}
+      <Modal visible={emojiPickerVisible} animationType="slide" transparent={true}>
+        <View style={styles.sheetOverlay}>
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Choose an Icon</Text>
+              <TouchableOpacity onPress={() => setEmojiPickerVisible(false)} style={styles.sheetCloseBtn}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.sheetScroll}>
+              {EMOJI_CATEGORIES.map((cat, idx) => (
+                <View key={idx} style={styles.categorySection}>
+                  <Text style={styles.categoryTitle}>{cat.title}</Text>
+                  <View style={styles.emojiGrid}>
+                    {cat.emojis.map((emoji, eIdx) => (
+                      <TouchableOpacity 
+                        key={eIdx} 
+                        style={styles.gridEmojiItem} 
+                        onPress={() => handleSelectEmoji(emoji)}
+                      >
+                        <Text style={styles.gridEmojiText}>{emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -271,11 +332,12 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalBox: { backgroundColor: '#FFFFFF', padding: 25, borderRadius: 24, elevation: 10 },
   modalTitle: { fontSize: 22, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginBottom: 15 },
-  inputRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  emojiWrapper: { width: 70, height: 60, backgroundColor: '#F4F9FF', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  emojiIconPlaceholder: { position: 'absolute' },
-  emojiInput: { width: '100%', height: '100%', fontSize: 24, color: '#2C3E50', textAlign: 'center', zIndex: 1 },
-  textInput: { flex: 1, backgroundColor: '#F4F9FF', borderRadius: 15, padding: 18, fontSize: 16, color: '#2C3E50', fontFamily: 'Poppins_400Regular', height: 60 },
+  inputRow: { flexDirection: 'row', gap: 10, marginBottom: 20, alignItems: 'center' },
+  emojiPickerTrigger: { width: 60, height: 60, backgroundColor: '#F4F9FF', borderRadius: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  emojiPlaceholderContainer: { position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  miniPlus: { position: 'absolute', top: -3, right: -4 },
+  selectedEmojiText: { fontSize: 26 },
+  textInput: { flex: 1, backgroundColor: '#F4F9FF', borderRadius: 15, paddingHorizontal: 18, fontSize: 16, color: '#2C3E50', fontFamily: 'Poppins_400Regular', height: 60 },
   pickerRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
   pickerBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F9FF', padding: 15, borderRadius: 15, gap: 8 },
   pickerText: { fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#2C3E50' },
@@ -283,5 +345,18 @@ const styles = StyleSheet.create({
   cancelBtn: { flex: 1, backgroundColor: '#F0F5FA', padding: 16, borderRadius: 15, alignItems: 'center' },
   submitBtn: { flex: 1, backgroundColor: '#4A65E0', padding: 16, borderRadius: 15, alignItems: 'center' },
   btnText: { color: '#7F8C8D', fontFamily: 'Poppins_700Bold', fontSize: 15 },
-  btnTextSubmit: { color: '#FFFFFF', fontFamily: 'Poppins_700Bold', fontSize: 15 }
+  btnTextSubmit: { color: '#FFFFFF', fontFamily: 'Poppins_700Bold', fontSize: 15 },
+  
+  // Sheet Styles
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheetContainer: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '60%', paddingBottom: 30 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingTop: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: '#F1F5F9' },
+  sheetTitle: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: '#2C3E50' },
+  sheetCloseBtn: { backgroundColor: '#F1F5F9', padding: 6, borderRadius: 20 },
+  sheetScroll: { paddingHorizontal: 20, paddingTop: 15 },
+  categorySection: { marginBottom: 20 },
+  categoryTitle: { fontSize: 13, fontFamily: 'Poppins_600SemiBold', color: '#94A3B8', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  gridEmojiItem: { width: 50, height: 50, backgroundColor: '#F8FAFC', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  gridEmojiText: { fontSize: 24 }
 });
