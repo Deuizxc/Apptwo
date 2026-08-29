@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Platform, Alert } from 'react-native';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,8 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-
-const QUICK_EMOJIS = ['📝', '💻', '📚', '🚀', '🔥', '☕', '🎮', '🏋️', '🛡️', '🎯'];
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState([]);
@@ -17,7 +15,7 @@ export default function TasksScreen() {
   // Form and Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [newTask, setNewTask] = useState('');
-  const [selectedEmoji, setSelectedEmoji] = useState('📝');
+  const [selectedEmoji, setSelectedEmoji] = useState('');
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
@@ -67,6 +65,11 @@ export default function TasksScreen() {
     await AsyncStorage.setItem('@tasks', JSON.stringify(data));
   };
 
+  const handleEmojiInput = (text) => {
+    const stripped = text.replace(/[\x00-\x7F]/g, "");
+    setSelectedEmoji(stripped ? Array.from(stripped)[0] : '');
+  };
+
   const addTask = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (newTask.trim()) {
@@ -74,11 +77,11 @@ export default function TasksScreen() {
       saveTasks([{ 
         id: Math.random().toString(), 
         title: newTask, 
-        emoji: selectedEmoji,
+        emoji: selectedEmoji || '📝', 
         deadline: `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`, 
         raw: date.toISOString(), status: isPast ? 'missed' : 'active' 
       }, ...tasks]);
-      setModalVisible(false); setNewTask(''); setDate(new Date()); setSelectedEmoji('📝');
+      setModalVisible(false); setNewTask(''); setDate(new Date()); setSelectedEmoji('');
     }
   };
 
@@ -86,6 +89,17 @@ export default function TasksScreen() {
     Haptics.notificationAsync(st === 'completed' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
     const newData = tasks.map(t => t.id === id ? { ...t, status: st } : t);
     saveTasks(newData);
+  };
+
+  const removeTask = (id) => {
+    saveTasks(tasks.filter(t => t.id !== id));
+  };
+
+  const confirmDelete = (id) => {
+    Alert.alert("Remove Task", "Delete this task from the list?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => removeTask(id) }
+    ]);
   };
 
   const onChangeDate = (event, selectedDate) => {
@@ -139,21 +153,27 @@ export default function TasksScreen() {
           )}
           {displayedTasks.map(task => (
             <View key={task.id} style={styles.card}>
-              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : '#A0AEC0' }]} />
+              <View style={[styles.cardIndicator, { backgroundColor: activeTab === 'active' ? '#48C9B0' : activeTab === 'completed' ? '#A0AEC0' : '#FF6B6B' }]} />
               <View style={styles.cardContent}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.taskEmoji}>{task.emoji || '📝'}</Text>
+                  <Text style={styles.taskEmoji}>{task.emoji}</Text>
                   <Text style={[styles.taskTitle, activeTab === 'completed' && styles.taskTitleDone]} numberOfLines={1}>
                     {task.title}
                   </Text>
                 </View>
                 <Text style={styles.taskDate}><Ionicons name="time-outline" size={12} /> {task.deadline}</Text>
               </View>
-              {activeTab === 'active' && (
-                <View style={styles.actionGroup}>
-                  <TouchableOpacity style={styles.iconBtnDone} onPress={() => updateStatus(task.id, 'completed')}><Ionicons name="checkmark" size={18} color="#FFF" /></TouchableOpacity>
-                </View>
-              )}
+              
+              <View style={styles.actionGroup}>
+                {activeTab === 'active' && (
+                  <TouchableOpacity style={styles.iconBtnDone} onPress={() => updateStatus(task.id, 'completed')}>
+                    <Ionicons name="checkmark" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.threeDotBtn} onPress={() => confirmDelete(task.id)}>
+                  <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -168,19 +188,27 @@ export default function TasksScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>New Task</Text>
             
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiScroll}>
-              {QUICK_EMOJIS.map(emoji => (
-                <TouchableOpacity 
-                  key={emoji} 
-                  onPress={() => { Haptics.selectionAsync(); setSelectedEmoji(emoji); }}
-                  style={[styles.emojiBtn, selectedEmoji === emoji && styles.emojiBtnActive]}
-                >
-                  <Text style={styles.emojiText}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TextInput style={styles.input} placeholder="What needs to be done?" placeholderTextColor="#A0AEC0" value={newTask} onChangeText={setNewTask} />
+            <View style={styles.inputRow}>
+              {/* Invisible placeholder logic for Emoji */}
+              <View style={styles.emojiWrapper}>
+                {!selectedEmoji && (
+                  <Ionicons name="add-circle-outline" size={24} color="#A0AEC0" style={styles.emojiIconPlaceholder} />
+                )}
+                <TextInput 
+                  style={styles.emojiInput} 
+                  placeholder="" 
+                  value={selectedEmoji} 
+                  onChangeText={handleEmojiInput} 
+                />
+              </View>
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="What needs to be done?" 
+                placeholderTextColor="#A0AEC0" 
+                value={newTask} 
+                onChangeText={setNewTask} 
+              />
+            </View>
             
             <View style={styles.pickerRow}>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => { setPickerMode('date'); setShowPicker(true); }}>
@@ -236,17 +264,18 @@ const styles = StyleSheet.create({
   taskTitle: { flex: 1, fontSize: 16, fontFamily: 'Poppins_600SemiBold', color: '#2C3E50' },
   taskTitleDone: { textDecorationLine: 'line-through', color: '#A0AEC0' },
   taskDate: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: '#7F8C8D', marginLeft: 26 },
-  actionGroup: { flexDirection: 'row', paddingRight: 15 },
-  iconBtnDone: { backgroundColor: '#48C9B0', padding: 10, borderRadius: 12 },
+  actionGroup: { flexDirection: 'row', paddingRight: 10, alignItems: 'center' },
+  iconBtnDone: { backgroundColor: '#48C9B0', padding: 10, borderRadius: 12, marginRight: 5 },
+  threeDotBtn: { padding: 8 },
   fab: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#4A65E0', width: 65, height: 65, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 6 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 20 },
   modalBox: { backgroundColor: '#FFFFFF', padding: 25, borderRadius: 24, elevation: 10 },
   modalTitle: { fontSize: 22, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginBottom: 15 },
-  emojiScroll: { flexDirection: 'row', marginBottom: 20 },
-  emojiBtn: { padding: 10, borderRadius: 12, backgroundColor: '#F4F9FF', marginRight: 10, borderWidth: 1, borderColor: 'transparent' },
-  emojiBtnActive: { borderColor: '#4A65E0', backgroundColor: '#E0E7FF' },
-  emojiText: { fontSize: 22 },
-  input: { backgroundColor: '#F4F9FF', borderRadius: 15, padding: 18, fontSize: 16, color: '#2C3E50', marginBottom: 20 },
+  inputRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  emojiWrapper: { width: 70, height: 60, backgroundColor: '#F4F9FF', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  emojiIconPlaceholder: { position: 'absolute' },
+  emojiInput: { width: '100%', height: '100%', fontSize: 24, color: '#2C3E50', textAlign: 'center', zIndex: 1 },
+  textInput: { flex: 1, backgroundColor: '#F4F9FF', borderRadius: 15, padding: 18, fontSize: 16, color: '#2C3E50', fontFamily: 'Poppins_400Regular', height: 60 },
   pickerRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
   pickerBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F9FF', padding: 15, borderRadius: 15, gap: 8 },
   pickerText: { fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: '#2C3E50' },
