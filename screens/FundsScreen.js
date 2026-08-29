@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { useState, useCallback, useRef, useContext } from 'react';
+import { useCallback, useRef, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
@@ -23,15 +23,11 @@ export default function FundsScreen() {
     }, [])
   );
 
-  const transactions = [
-    { id: 1, title: 'Class T-Shirt Print', amount: '-₱350', date: 'Aug 28', icon: 'shirt', type: 'out' },
-    { id: 2, title: 'Contribution: Intramurals', amount: '+₱100', date: 'Aug 25', icon: 'cash', type: 'in' },
-    { id: 3, title: 'Room Cleaning Supplies', amount: '-₱120', date: 'Aug 20', icon: 'water', type: 'out' },
-  ];
+  // Cleared out pending spreadsheet sync
+  const transactions = [];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Geometric Vault Background Elements */}
       <View style={[styles.circleVault, { backgroundColor: colors.primary }]} />
       <View style={[styles.squareVault, { backgroundColor: colors.border }]} />
 
@@ -46,7 +42,7 @@ export default function FundsScreen() {
 
         <View style={styles.balanceContainer}>
           <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.8)', fontSize: 14 * fontSize }]}>Total SBIT-2A Funds</Text>
-          <Text style={[styles.balanceAmount, { color: '#FFF', fontSize: 40 * fontSize }]}>₱4,250.00</Text>
+          <Text style={[styles.balanceAmount, { color: '#FFF', fontSize: 40 * fontSize }]}>₱0.00</Text>
         </View>
 
         <View style={[styles.sheet, { backgroundColor: colors.background }]}>
@@ -71,20 +67,27 @@ export default function FundsScreen() {
             <TouchableOpacity><Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text></TouchableOpacity>
           </View>
 
-          {transactions.map((t) => (
-            <View key={t.id} style={[styles.transactionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.txIconContainer, { backgroundColor: colors.background }]}>
-                <Ionicons name={t.icon} size={20} color={colors.text} />
-              </View>
-              <View style={styles.txDetails}>
-                <Text style={[styles.txTitle, { color: colors.text, fontSize: 15 * fontSize }]}>{t.title}</Text>
-                <Text style={[styles.txDate, { color: colors.subtext, fontSize: 12 * fontSize }]}>{t.date}</Text>
-              </View>
-              <Text style={[styles.txAmount, { color: t.type === 'in' ? '#36E08B' : '#FF6B6B', fontSize: 15 * fontSize }]}>
-                {t.amount}
-              </Text>
+          {transactions.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="sync" size={40} color={colors.subtext} />
+              <Text style={[styles.emptyText, { color: colors.subtext, fontSize: 14 * fontSize }]}>Syncing with spreadsheet soon...</Text>
             </View>
-          ))}
+          ) : (
+            transactions.map((t) => (
+              <View key={t.id} style={[styles.transactionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.txIconContainer, { backgroundColor: colors.background }]}>
+                  <Ionicons name={t.icon} size={20} color={colors.text} />
+                </View>
+                <View style={styles.txDetails}>
+                  <Text style={[styles.txTitle, { color: colors.text, fontSize: 15 * fontSize }]}>{t.title}</Text>
+                  <Text style={[styles.txDate, { color: colors.subtext, fontSize: 12 * fontSize }]}>{t.date}</Text>
+                </View>
+                <Text style={[styles.txAmount, { color: t.type === 'in' ? '#36E08B' : '#FF6B6B', fontSize: 15 * fontSize }]}>
+                  {t.amount}
+                </Text>
+              </View>
+            ))
+          )}
         </View>
       </Animated.ScrollView>
     </View>
@@ -109,6 +112,8 @@ const styles = StyleSheet.create({
   historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   historyTitle: { fontFamily: 'Poppins_700Bold' },
   seeAll: { fontFamily: 'Poppins_600SemiBold', fontSize: 13 },
+  emptyState: { alignItems: 'center', marginTop: 40 },
+  emptyText: { fontFamily: 'Poppins_400Regular', marginTop: 10 },
   transactionCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
   txIconContainer: { width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   txDetails: { flex: 1 },
