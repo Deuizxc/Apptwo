@@ -1,15 +1,14 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Linking, Animated } from 'react-native';
-import { useState, useRef, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { useState, useCallback, useRef, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { AppContext } from '../context/AppContext';
+import * as Haptics from 'expo-haptics';
+
+const { width } = Dimensions.get('window');
 
 export default function FundsScreen() {
-  const [sheetLink, setSheetLink] = useState('');
-  const [tempLink, setTempLink] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const { colors, fontSize, setIsSidebarOpen } = useContext(AppContext);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -21,84 +20,99 @@ export default function FundsScreen() {
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true })
       ]).start();
-      
-      getDoc(doc(db, 'settings', 'funds')).then(snap => { 
-        if (snap.exists()) { setSheetLink(snap.data().url); setTempLink(snap.data().url); }
-      });
     }, [])
   );
 
-  const save = async () => { await setDoc(doc(db, 'settings', 'funds'), { url: tempLink }); setSheetLink(tempLink); setEditMode(false); };
+  const transactions = [
+    { id: 1, title: 'Class T-Shirt Print', amount: '-₱350', date: 'Aug 28', icon: 'shirt', type: 'out' },
+    { id: 2, title: 'Contribution: Intramurals', amount: '+₱100', date: 'Aug 25', icon: 'cash', type: 'in' },
+    { id: 3, title: 'Room Cleaning Supplies', amount: '-₱120', date: 'Aug 20', icon: 'water', type: 'out' },
+  ];
 
   return (
-    <View style={styles.container}>
-      {/* Geometric Vault Header in App Theme Colors */}
-      <View style={styles.vaultHeader} />
-      <View style={styles.vaultAccent} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Geometric Vault Background Elements */}
+      <View style={[styles.circleVault, { backgroundColor: colors.primary }]} />
+      <View style={[styles.squareVault, { backgroundColor: colors.border }]} />
 
-      <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <Animated.ScrollView style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        
         <View style={styles.headerArea}>
-          <Text style={styles.headerTitle}>Class Ledger</Text>
-          <TouchableOpacity onPress={() => setIsAdmin(!isAdmin)} style={styles.adminBadge}>
-            <Text style={styles.adminText}>{isAdmin ? 'Admin' : 'Student'}</Text>
+          <Text style={[styles.headerTitle, { color: colors.card, fontSize: 28 * fontSize }]}>Class Vault</Text>
+          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsSidebarOpen(true); }} style={styles.menuBtn}>
+            <Ionicons name="menu" size={32} color={colors.card} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.content}>
-          <View style={styles.balanceCard}>
-            <Ionicons name="shield-checkmark" size={40} color="#6D5AED" style={{marginBottom: 10}} />
-            <Text style={styles.balanceSub}>Financial Transparency</Text>
-            <Text style={styles.balanceDesc}>All collections and expenses are tracked live.</Text>
+        <View style={styles.balanceContainer}>
+          <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.8)', fontSize: 14 * fontSize }]}>Total SBIT-2A Funds</Text>
+          <Text style={[styles.balanceAmount, { color: '#FFF', fontSize: 40 * fontSize }]}>₱4,250.00</Text>
+        </View>
+
+        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.actionIconBg, { backgroundColor: 'rgba(54, 224, 139, 0.1)' }]}>
+                <Ionicons name="arrow-down" size={20} color="#36E08B" />
+              </View>
+              <Text style={[styles.actionText, { color: colors.text }]}>Collect</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.actionIconBg, { backgroundColor: 'rgba(255, 107, 107, 0.1)' }]}>
+                <Ionicons name="arrow-up" size={20} color="#FF6B6B" />
+              </View>
+              <Text style={[styles.actionText, { color: colors.text }]}>Expense</Text>
+            </TouchableOpacity>
           </View>
 
-          {!editMode && (
-            <TouchableOpacity onPress={() => sheetLink && Linking.openURL(sheetLink)} style={styles.openBtn}>
-              <Ionicons name="folder-open" size={24} color="#FFF" />
-              <Text style={styles.openText}>{sheetLink ? 'Open Google Sheets' : 'No Ledger Linked'}</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.historyHeader}>
+            <Text style={[styles.historyTitle, { color: colors.text, fontSize: 18 * fontSize }]}>Recent Transactions</Text>
+            <TouchableOpacity><Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text></TouchableOpacity>
+          </View>
 
-          {isAdmin && !editMode && (
-            <TouchableOpacity onPress={() => setEditMode(true)} style={{marginTop: 25}}>
-              <Text style={styles.editText}>Configure Document Link</Text>
-            </TouchableOpacity>
-          )}
-
-          {isAdmin && editMode && (
-            <View style={styles.editCard}>
-              <Text style={styles.label}>Paste Link Here:</Text>
-              <TextInput style={styles.input} placeholder="https://docs.google.com/..." placeholderTextColor="#A0AEC0" value={tempLink} onChangeText={setTempLink} />
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditMode(false)}><Text style={{color: '#64748B', fontWeight:'bold'}}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={save}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Secure Link</Text></TouchableOpacity>
+          {transactions.map((t) => (
+            <View key={t.id} style={[styles.transactionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.txIconContainer, { backgroundColor: colors.background }]}>
+                <Ionicons name={t.icon} size={20} color={colors.text} />
               </View>
+              <View style={styles.txDetails}>
+                <Text style={[styles.txTitle, { color: colors.text, fontSize: 15 * fontSize }]}>{t.title}</Text>
+                <Text style={[styles.txDate, { color: colors.subtext, fontSize: 12 * fontSize }]}>{t.date}</Text>
+              </View>
+              <Text style={[styles.txAmount, { color: t.type === 'in' ? '#36E08B' : '#FF6B6B', fontSize: 15 * fontSize }]}>
+                {t.amount}
+              </Text>
             </View>
-          )}
+          ))}
         </View>
-      </Animated.View>
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F9FF' },
-  vaultHeader: { position: 'absolute', top: -50, width: '150%', height: 350, backgroundColor: '#1D70F5', transform: [{ skewY: '-8deg' }], left: '-25%' },
-  vaultAccent: { position: 'absolute', top: 250, width: '150%', height: 50, backgroundColor: '#36E08B', transform: [{ skewY: '-8deg' }], left: '-25%', opacity: 0.9 },
-  headerArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 70, paddingHorizontal: 25, paddingBottom: 30 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#FFF' },
-  adminBadge: { backgroundColor: '#FFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  adminText: { color: '#1D70F5', fontWeight: 'bold', fontSize: 12 },
-  content: { paddingHorizontal: 25, alignItems: 'center', marginTop: 40 },
-  balanceCard: { backgroundColor: '#FFF', width: '100%', padding: 30, borderRadius: 16, alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 20 },
-  balanceSub: { fontSize: 18, fontWeight: 'bold', color: '#2C3E50' },
-  balanceDesc: { fontSize: 13, color: '#7F8C8D', textAlign: 'center', marginTop: 8 },
-  openBtn: { flexDirection: 'row', backgroundColor: '#6D5AED', paddingVertical: 18, paddingHorizontal: 25, borderRadius: 12, width: '100%', justifyContent: 'center', alignItems: 'center', elevation: 3, gap: 10 },
-  openText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  editText: { color: '#6D5AED', fontWeight: 'bold', fontSize: 14, textDecorationLine: 'underline' },
-  editCard: { backgroundColor: '#FFF', padding: 25, borderRadius: 16, width: '100%', elevation: 4, borderWidth: 1, borderColor: '#E5E7EB' },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#2C3E50', marginBottom: 10 },
-  input: { backgroundColor: '#F4F9FF', borderRadius: 8, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: '#D1D5DB', color: '#2C3E50' },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  cancelBtn: { flex: 1, backgroundColor: '#E5E7EB', padding: 15, borderRadius: 8, alignItems: 'center' },
-  saveBtn: { flex: 1, backgroundColor: '#6D5AED', padding: 15, borderRadius: 8, alignItems: 'center' }
+  container: { flex: 1 },
+  circleVault: { position: 'absolute', top: -100, right: -50, width: width * 1.5, height: width * 1.5, borderRadius: width, opacity: 0.9 },
+  squareVault: { position: 'absolute', top: 50, left: -40, width: 100, height: 100, transform: [{ rotate: '45deg' }], opacity: 0.1 },
+  headerArea: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 70, paddingHorizontal: 25, paddingBottom: 20 },
+  headerTitle: { fontFamily: 'Poppins_700Bold' },
+  menuBtn: { padding: 5 },
+  balanceContainer: { paddingHorizontal: 30, paddingTop: 10, paddingBottom: 40 },
+  balanceLabel: { fontFamily: 'Poppins_600SemiBold', marginBottom: 5 },
+  balanceAmount: { fontFamily: 'Poppins_700Bold' },
+  sheet: { flex: 1, borderTopLeftRadius: 40, borderTopRightRadius: 40, paddingTop: 30, paddingHorizontal: 25, minHeight: 500 },
+  actionRow: { flexDirection: 'row', gap: 15, marginBottom: 35 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 20, borderWidth: 1, gap: 12 },
+  actionIconBg: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  actionText: { fontFamily: 'Poppins_700Bold', fontSize: 15 },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  historyTitle: { fontFamily: 'Poppins_700Bold' },
+  seeAll: { fontFamily: 'Poppins_600SemiBold', fontSize: 13 },
+  transactionCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 20, borderWidth: 1, marginBottom: 12 },
+  txIconContainer: { width: 45, height: 45, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  txDetails: { flex: 1 },
+  txTitle: { fontFamily: 'Poppins_600SemiBold', marginBottom: 2 },
+  txDate: { fontFamily: 'Poppins_400Regular' },
+  txAmount: { fontFamily: 'Poppins_700Bold' }
 });

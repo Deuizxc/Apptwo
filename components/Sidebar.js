@@ -5,22 +5,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function Sidebar() {
   const { isSidebarOpen, setIsSidebarOpen, userName, theme, toggleTheme, fontSize, updateFontSize, isAdmin, setIsAdmin, colors } = useContext(AppContext);
+  
+  // Two separate animations: one for the slide, one for the background fade
   const slideAnim = useRef(new Animated.Value(width)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const navigation = useNavigation();
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: isSidebarOpen ? 0 : width,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: isSidebarOpen ? 0 : width,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: isSidebarOpen ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
   }, [isSidebarOpen]);
 
-  // Quick helper to combine haptics with state changes
   const handleTap = (action) => {
     Haptics.selectionAsync();
     action();
@@ -28,21 +37,24 @@ export default function Sidebar() {
 
   return (
     <View style={styles.overlay} pointerEvents={isSidebarOpen ? 'auto' : 'none'}>
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
-        onPress={() => setIsSidebarOpen(false)} 
-      />
       
+      {/* Absolute Fading Backdrop */}
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <TouchableOpacity 
+          style={{ flex: 1 }} 
+          activeOpacity={1} 
+          onPress={() => setIsSidebarOpen(false)} 
+        />
+      </Animated.View>
+      
+      {/* Absolute Sliding Drawer */}
       <Animated.View style={[styles.drawer, { backgroundColor: colors.card, transform: [{ translateX: slideAnim }] }]}>
         
-        {/* User Profile Header */}
         <View style={styles.header}>
           <Ionicons name="person-circle" size={65} color={colors.primary} />
           <Text style={[styles.name, { color: colors.text, fontSize: 18 * fontSize }]}>Hello, {userName}</Text>
         </View>
 
-        {/* Theme Toggle Menu */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.subtext }]}>Appearance</Text>
           <View style={styles.row}>
@@ -58,7 +70,6 @@ export default function Sidebar() {
           </View>
         </View>
 
-        {/* Font Size Menu */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.subtext }]}>Text Size</Text>
           <View style={styles.row}>
@@ -78,7 +89,6 @@ export default function Sidebar() {
 
         <View style={styles.spacer} />
 
-        {/* Admin Access Logic */}
         <TouchableOpacity 
           style={[styles.adminBtn, { backgroundColor: isAdmin ? '#FF6B6B' : colors.primary }]} 
           onPress={() => {
@@ -87,7 +97,6 @@ export default function Sidebar() {
             if (isAdmin) {
               setIsAdmin(false);
             } else {
-              // Wait for the drawer to close before navigating
               setTimeout(() => navigation.navigate('AdminLogin'), 300);
             }
           }}
@@ -102,9 +111,9 @@ export default function Sidebar() {
 }
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', width, height, zIndex: 1000, flexDirection: 'row', right: 0 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  drawer: { width: '75%', height: '100%', padding: 25, paddingTop: 70, elevation: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20 },
+  overlay: { position: 'absolute', width: '100%', height: '100%', zIndex: 1000 },
+  backdrop: { position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  drawer: { position: 'absolute', right: 0, width: '75%', height: '100%', padding: 25, paddingTop: 70, elevation: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20 },
   header: { alignItems: 'center', marginBottom: 40 },
   name: { fontFamily: 'Poppins_700Bold', marginTop: 10 },
   section: { marginBottom: 35 },
