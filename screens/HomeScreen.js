@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, Animated, Alert, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
@@ -6,6 +6,11 @@ import { db } from '../firebaseConfig';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function HomeScreen({ navigation }) {
   const [announcements, setAnnouncements] = useState([]);
@@ -46,6 +51,8 @@ export default function HomeScreen({ navigation }) {
 
   const toggleExpand = (id) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Triggers the smooth expand/collapse animation
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
   };
 
@@ -62,6 +69,13 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const confirmDelete = (id) => {
+    Alert.alert("Delete Post", "Remove this announcement?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteDoc(doc(db, 'announcements', id)) }
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.bgBlobBlue} />
@@ -76,6 +90,21 @@ export default function HomeScreen({ navigation }) {
           </View>
           <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid); setIsAdmin(!isAdmin); }} style={styles.adminBadge}>
             <Text style={styles.adminText}>{isAdmin ? 'Admin Mode' : 'Student'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.quickGlanceRow}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => navigation.navigate('Planner')}>
+            <BlurView intensity={50} tint="light" style={styles.glanceGlass}>
+              <Ionicons name="calendar" size={24} color="#1D70F5" />
+              <Text style={styles.glanceTitle}>Schedule</Text>
+            </BlurView>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => navigation.navigate('Tasks')}>
+            <BlurView intensity={50} tint="light" style={styles.glanceGlass}>
+              <Ionicons name="checkbox" size={24} color="#36E08B" />
+              <Text style={styles.glanceTitle}>My Tasks</Text>
+            </BlurView>
           </TouchableOpacity>
         </View>
 
@@ -96,9 +125,24 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.title}>{post.title}</Text>
                 <Text style={styles.date}>{post.date}</Text>
               </View>
-              <Text style={styles.body} numberOfLines={expandedId === post.id ? undefined : 3}>{post.body}</Text>
-              {post.body.length > 120 && expandedId !== post.id && (
+              
+              <Text style={styles.body} numberOfLines={expandedId === post.id ? 0 : 3}>
+                {post.body}
+              </Text>
+              
+              {/* Show "Read More" only if closed and text is long enough to be truncated */}
+              {post.body.length > 100 && expandedId !== post.id && (
                 <Text style={styles.readMore}>Read More...</Text>
+              )}
+              {/* Show "Show Less" when expanded */}
+              {expandedId === post.id && (
+                <Text style={styles.readMore}>Show Less</Text>
+              )}
+
+              {isAdmin && (
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => confirmDelete(post.id)}>
+                  <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
               )}
             </TouchableOpacity>
           ))
@@ -111,7 +155,19 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* Modal code remains the same */}
+      <Modal visible={modalVisible} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Post Update</Text>
+            <TextInput style={styles.input} placeholder="Title" value={newTitle} onChangeText={setNewTitle} />
+            <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} placeholder="Message" value={newBody} onChangeText={setNewBody} multiline />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}><Text style={{color: '#FFF'}}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={addAnnouncement}><Text style={{color: '#FFF', fontWeight: 'bold'}}>Post</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -125,13 +181,26 @@ const styles = StyleSheet.create({
   subGreeting: { fontSize: 14, fontFamily: 'Poppins_400Regular', color: '#7F8C8D' },
   adminBadge: { backgroundColor: '#E0E6ED', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
   adminText: { color: '#2C3E50', fontFamily: 'Poppins_600SemiBold', fontSize: 12 },
+  quickGlanceRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 15, marginBottom: 25 },
+  glanceCard: { flex: 1, height: 100, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
+  glanceGlass: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.3)' },
+  glanceTitle: { fontSize: 14, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginTop: 8 },
   sectionHeader: { paddingHorizontal: 25, marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: '#2C3E50' },
-  card: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, marginHorizontal: 20, marginBottom: 15, elevation: 2 },
+  card: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, marginHorizontal: 20, marginBottom: 15, elevation: 2, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   title: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: '#2C3E50', flex: 1 },
   date: { fontSize: 12, color: '#1D70F5', fontFamily: 'Poppins_600SemiBold' },
-  body: { fontSize: 14, fontFamily: 'Poppins_400Regular', color: '#7F8C8D', lineHeight: 20 },
-  readMore: { color: '#1D70F5', fontFamily: 'Poppins_600SemiBold', fontSize: 12, marginTop: 5 },
-  fab: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#1D70F5', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 }
+  body: { fontSize: 14, fontFamily: 'Poppins_400Regular', color: '#7F8C8D', lineHeight: 22 },
+  readMore: { color: '#1D70F5', fontFamily: 'Poppins_600SemiBold', fontSize: 12, marginTop: 8 },
+  deleteBtn: { backgroundColor: '#FFEDED', padding: 8, borderRadius: 10, alignSelf: 'flex-start', marginTop: 15 },
+  deleteText: { color: '#FF6B6B', fontSize: 11, fontFamily: 'Poppins_700Bold' },
+  fab: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#1D70F5', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalBox: { backgroundColor: '#FFF', padding: 25, borderRadius: 24 },
+  modalTitle: { fontSize: 20, fontFamily: 'Poppins_700Bold', color: '#2C3E50', marginBottom: 20 },
+  input: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 15, marginBottom: 15, fontFamily: 'Poppins_400Regular' },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  cancelBtn: { flex: 1, backgroundColor: '#A0AEC0', padding: 15, borderRadius: 12, alignItems: 'center' },
+  submitBtn: { flex: 1, backgroundColor: '#1D70F5', padding: 15, borderRadius: 12, alignItems: 'center' }
 });
